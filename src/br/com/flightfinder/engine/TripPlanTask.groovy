@@ -1,6 +1,8 @@
 package br.com.flightfinder.engine
 
 import java.util.List;
+import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import br.com.flightfinder.model.Airline;
 import br.com.flightfinder.model.Flight;
@@ -9,6 +11,8 @@ import br.com.flightfinder.model.TripPlan;
 class TripPlanTask implements Runnable, AirlineTaskFinished {
 	
 	TripPlan tripPlan
+	def pool = Executors.newFixedThreadPool(4)
+	AtomicInteger taskCount = new AtomicInteger(0)
 
 	@Override
 	public void run() {
@@ -27,7 +31,8 @@ class TripPlanTask implements Runnable, AirlineTaskFinished {
 						
 						task.onDoneDelegate = this
 						
-						task.run()
+						taskCount.incrementAndGet()
+						pool.submit(task)
 					}
 				} else {
 					// Breaks the loop
@@ -38,16 +43,19 @@ class TripPlanTask implements Runnable, AirlineTaskFinished {
 			// Next day
 			currentDate++ 
 		}
-		
-		println 'Found flights:'
-		
-		tripPlan.flights.each{ flight ->
-			println flight
-		}
 	}
 	
 	@Override
 	def airlineTaskFinished(AirlineTask task, List<Flight> foundFlights) {
-		tripPlan.flights << foundFlights
+		tripPlan.flights.addAll( foundFlights )
+		if ( taskCount.decrementAndGet() == 0 ) {
+			println 'Found flights:'
+			
+			tripPlan.flights.each{ flight ->
+				println "Flight from ${flight.from.code} at ${flight.departTime} to ${flight.to.code} at ${flight.arrivalTime} for ${flight.value}"
+			}
+			
+			pool.shutdown()
+		}
 	}
 }
