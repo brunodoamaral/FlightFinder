@@ -2,12 +2,12 @@ package br.com.flightfinder.model
 
 class TripPlan {
 	
-	Calendar startDate
-	Calendar endDate
+	Date startDate
+	Date endDate
 	Integer minDays
 	Integer maxDays
 	Airport from
 	Airport to
-	List<Flight> flights
+	List<Flight> flights = []
 
 }

@@ -4,7 +4,6 @@ import static groovyx.net.http.ContentType.*
 import static groovyx.net.http.Method.*
 import br.com.flightfinder.model.*
 
-System.setProperty("org.apache.http.wire", "DEBUG")
 
 def http = new HTTPBuilder('https://www.aa.com', HTML)
 

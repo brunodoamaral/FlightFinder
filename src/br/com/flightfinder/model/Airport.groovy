@@ -40,4 +40,8 @@ class Airport {
 	public static Airport getByCode(String code) {
 		allAirports[code]
 	}
+	
+	public String toString() {
+		return this.dump();
+	};
 }
