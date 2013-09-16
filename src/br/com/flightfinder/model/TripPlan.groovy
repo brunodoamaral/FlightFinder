@@ -8,6 +8,6 @@ class TripPlan {
 	Integer maxDays
 	Airport from
 	Airport to
-	List<Flight> flights = []
+	List<RoundTrip> trips = []
 
 }

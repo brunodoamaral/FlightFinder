@@ -6,10 +6,6 @@ class Flight {
 	Airport to	
 	def departTime
 	def arrivalTime
-	def value
-	Boolean taxIncluded
-	Airline airline
-	Map extra
 	
 	@Override
 	public String toString() {

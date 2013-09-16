@@ -6,6 +6,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import br.com.flightfinder.model.Airline;
 import br.com.flightfinder.model.Flight;
+import br.com.flightfinder.model.RoundTrip;
 import br.com.flightfinder.model.TripPlan;
 
 class TripPlanTask implements Runnable, AirlineTaskFinished {
@@ -19,7 +20,7 @@ class TripPlanTask implements Runnable, AirlineTaskFinished {
 		// Creates the taks for each valid date in the trip plan
 		def currentDate = tripPlan.startDate
 		while ( currentDate < tripPlan.endDate ) {
-			for( def duration = tripPlan.minDays; duration < tripPlan.maxDays; duration++ ) {
+			for( def duration = tripPlan.minDays; duration <= tripPlan.maxDays; duration++ ) {
 				if( currentDate + duration <= tripPlan.endDate ) {
 					Airline.ALL_AIRLINES.each { airline ->
 						AirlineTask task = airline.taskClass.newInstance([
@@ -46,13 +47,17 @@ class TripPlanTask implements Runnable, AirlineTaskFinished {
 	}
 	
 	@Override
-	def airlineTaskFinished(AirlineTask task, List<Flight> foundFlights) {
-		tripPlan.flights.addAll( foundFlights )
+	def airlineTaskFinished(AirlineTask task, List<RoundTrip> foundTrips, Exception error) {
+		if( error ) {
+			error.printStackTrace();
+		} else {
+			tripPlan.trips.addAll( foundTrips )
+		}
 		if ( taskCount.decrementAndGet() == 0 ) {
 			println 'Found flights:'
 			
-			tripPlan.flights.each{ flight ->
-				println "Flight from ${flight.from.code} at ${flight.departTime} to ${flight.to.code} at ${flight.arrivalTime} for ${flight.value}"
+			tripPlan.trips.each{ trip ->
+				println "Flight from ${trip.from.code} at ${trip.departingFlights.first().departTime} to ${trip.to.code} at ${trip.departingFlights.last().arrivalTime} for ${trip.value}"
 			}
 			
 			pool.shutdown()

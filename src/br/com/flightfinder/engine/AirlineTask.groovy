@@ -3,7 +3,7 @@ package br.com.flightfinder.engine
 import br.com.flightfinder.model.*;
 
 public interface AirlineTaskFinished {
-	def airlineTaskFinished(AirlineTask task, List<Flight> foundFlights);
+	def airlineTaskFinished(AirlineTask task, List<RoundTrip> foundTrips, Exception error);
 }
 	
 abstract class AirlineTask implements Runnable {
