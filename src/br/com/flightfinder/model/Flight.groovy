@@ -4,8 +4,8 @@ class Flight {
 
 	Airport from
 	Airport to	
-	def departTime
-	def arrivalTime
+	Calendar departTime
+	Calendar arrivalTime
 	
 	@Override
 	public String toString() {

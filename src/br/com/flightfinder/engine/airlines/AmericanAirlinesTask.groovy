@@ -69,14 +69,14 @@ class AmericanAirlinesTask extends AirlineTask {
 			// Faz o segundo request...
 			html = http.get([path: redirectUrl, queryString: redirectQueryString])
 			
-			println "Partidas..."
+//			println "Partidas..."
 			def tableValues = html."**".find( { it.name() == "TABLE" && it.@id == "js-matrix-departure-lowest" } )
 			
 			SimpleDateFormat hourFormat = new SimpleDateFormat("KK:mm a")
 			
 			def roundTrips = []
 			if ( tableValues ) {
-				println "Option trip:"
+//				println "Option trip:"
 				def currTrip = new RoundTrip([airline: airline])
 				tableValues.TBODY.TR.each { trValue ->
 					def matchValue = trValue.@id =~ /flight-lowest-departure-(\d+)-(\d+)/
@@ -98,13 +98,13 @@ class AmericanAirlinesTask extends AirlineTask {
 						// -> From
 						currFlight.from = Airport.getByCode(tdsTime[0].SPAN.text().trim())
 						def departTime = hourFormat.parse(tdsTime[0].STRONG.text())
-						currFlight.departTime = new GregorianCalendar(startDate[Calendar.YEAR], startDate[Calendar.MONTH], startDate[Calendar.DAY_OF_MONTH], departTime[Calendar.HOUR], departTime[Calendar.MINUTE])
+						currFlight.departTime = new GregorianCalendar(startDate[Calendar.YEAR], startDate[Calendar.MONTH], startDate[Calendar.DAY_OF_MONTH], departTime[Calendar.HOUR_OF_DAY], departTime[Calendar.MINUTE])
 						currFlight.departTime.setTimeZone(currFlight.from.timeZone)
 						
 						// -> To
 						currFlight.to = Airport.getByCode(tdsTime[1].SPAN.text().trim())
 						def arrivalTime = hourFormat.parse(tdsTime[1].STRONG.text())
-						currFlight.arrivalTime = new GregorianCalendar(startDate[Calendar.YEAR], startDate[Calendar.MONTH], startDate[Calendar.DAY_OF_MONTH], arrivalTime[Calendar.HOUR], arrivalTime[Calendar.MINUTE])
+						currFlight.arrivalTime = new GregorianCalendar(startDate[Calendar.YEAR], startDate[Calendar.MONTH], startDate[Calendar.DAY_OF_MONTH], arrivalTime[Calendar.HOUR_OF_DAY], arrivalTime[Calendar.MINUTE])
 						currFlight.arrivalTime.setTimeZone(currFlight.to.timeZone)
 						
 						// Fix next-day arrival
@@ -112,14 +112,14 @@ class AmericanAirlinesTask extends AirlineTask {
 							currFlight.arrivalTime.add(Calendar.DAY_OF_MONTH, 1)
 						}
 						
-						println "${currFlight.from.code}->${currFlight.to.code} ${formatCalendar(currFlight.departTime)} ${formatCalendar(currFlight.arrivalTime)}"
+//						println "${currFlight.from.code}->${currFlight.to.code} ${formatCalendar(currFlight.departTime)} ${formatCalendar(currFlight.arrivalTime)}"
 						
 						// Add current flight to trip
 						currTrip.departingFlights.add( currFlight )
 					} else if ( trValue.@id =~ /flight-notes-*/  ) {
 						currTrip.extra['notes'] = trValue.text()
 						roundTrips.add(currTrip)
-						println "Option trip:"
+//						println "Option trip:"
 						currTrip = new RoundTrip([airline: airline])
 					}
 				}

@@ -1,5 +1,7 @@
 package br.com.flightfinder.engine
 
+import groovy.time.TimeCategory;
+
 import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -57,7 +59,14 @@ class TripPlanTask implements Runnable, AirlineTaskFinished {
 			println 'Found flights:'
 			
 			tripPlan.trips.each{ trip ->
-				println "Flight from ${trip.from.code} at ${trip.departingFlights.first().departTime} to ${trip.to.code} at ${trip.departingFlights.last().arrivalTime} for ${trip.value}"
+				println "> Trip from ${trip.from.code} to ${trip.to.code}"
+				def totalDuration = TimeCategory.minus(trip.departingFlights.last().arrivalTime.time, trip.departingFlights.first().departTime.time)
+				println "  Departure (duration ${totalDuration})"
+				trip.departingFlights.each{ flight ->
+					def duration = TimeCategory.minus(flight.arrivalTime.time, flight.departTime.time)
+					println "    ${flight.from.code}->${flight.to.code} ${flight.departTime.format('dd/MM/yyyy HH:mm Z')} ${flight.arrivalTime.format('dd/MM/yyyy HH:mm Z')} = ${duration}"
+				}
+//				println "Flight from ${trip.from.code} at ${trip.departingFlights.first().departTime} to ${trip.to.code} at ${trip.departingFlights.last().arrivalTime} for ${trip.value}"
 			}
 			
 			pool.shutdown()
