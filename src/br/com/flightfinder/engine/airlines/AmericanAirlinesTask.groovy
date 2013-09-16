@@ -2,9 +2,15 @@ package br.com.flightfinder.engine.airlines
 
 import java.text.SimpleDateFormat;
 
+import groovy.util.slurpersupport.NodeChild;
+import groovy.util.slurpersupport.NodeChildren;
+import groovy.xml.XmlUtil;
 import groovyx.net.http.*
 import static groovyx.net.http.ContentType.*
 import static groovyx.net.http.Method.*
+
+import org.apache.http.auth.*
+
 import br.com.flightfinder.model.*
 import br.com.flightfinder.engine.AirlineTask
 import br.com.flightfinder.model.Flight
@@ -16,113 +22,92 @@ class AmericanAirlinesTask extends AirlineTask {
 		try {
 			println "Starting a task for American Airlines from ${from.code} to ${to.code} between ${start} and ${end}"
 			
-			
-			def http = new HTTPBuilder('https://www.aa.com', HTML)
+			def http = new HTTPBuilder("http://mobile.aa.com")
+				
+			http.setHeaders(['User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_8_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/29.0.1547.65 Safari/537.36'])
 			
 			def params = [
-				'currentCalForm': 'dep',
-				'currentCodeForm': '',
-				'tripType': 'roundTrip',
+				'dateChanged':'',
+				'flightSearch':'revenue',
+				'tripType':'roundTrip',
+				'fromSearchPage':'true',
+				'searchCategory':'false',
+				'netSaaversTripType':'',
 				'originAirport': from.code,
+				'destinationAirport': to.code,
 				'flightParams.flightDateParams.travelMonth': start.format("M"),
 				'flightParams.flightDateParams.travelDay': start.format("d"),
-	//			'flightParams.flightDateParams.searchTime': '040001',
-				'destinationAirport': to.code,
 				'returnDate.travelMonth': end.format("M"),
 				'returnDate.travelDay': end.format("d"),
-	//			'returnDate.searchTime': '040001',
-				'adultPassengerCount': '1',
-				'adultPassengerCount': '1',
-				'hotelRoomCount': '1',
-				'serviceclass': 'coach',
-				'searchTypeMode': 'matrix',
-				'awardDatesFlexible': 'true',
-				'originAlternateAirportDistance': '0',
-				'destinationAlternateAirportDistance': '0',
-				'discountCode': '',
-				'flightSearch': 'revenue',
-				'dateChanged': 'false',
-				'fromSearchPage': 'true',
-				'advancedSearchOpened': 'false',
-				'numberOfFlightsToDisplay': '10',
-				'searchCategory': '',
-				'aairpassSearchType': 'false',
-				'moreOptionsIndicator': '',
-				'seniorPassengerCount': '0',
-				'youngAdultPassengerCount': '0',
-				'childPassengerCount': '0',
-				'infantPassengerCount': '0',
-				'passengerCount': '1',
+				'classOfServicePreference':'coach-restricted',
+				'adultPassengerCount':'1',
+				'seniorPassengerCount':'0',
+				'youngAdultPassengerCount':'0',
+				'childPassengerCount':'0',
+				'infantPassengerCount':'0',
+				'aairpassSearchType':'false',
+				'currentCodeForm':'',
+				'searchType':'fare',
+				'currentCalForm':'dep',
+				'adults':'1',
+				'rooms':'1',
+				'serviceclass':'coach',
+				'cabinOfServicePreference':'matrix-lowest_fare',
+				'cabinOfServicePreference':'matrix-show_all',
+				'carrierPreference':'T',
+				'countryPointOfSale':'BR',
+				'discountCode':'',
+				'passengerCount':'1',
+				'_button_success':'Pesquisar',
+				'un_form_encoding':'UTF-8',
 				'locale': 'pt_BR' ];
 			
 			// perform a GET request, expecting JSON response data
-			def html = http.post( [ path: '/reservation/searchFlightsSubmit.do', body: params ])
+			def html = http.post( [ path: '/mt/www.aa.com/reservation/tripSearchSubmit.do', body: params ])
 			
-			def refreshMeta = html.HEAD.META.find({ it['@http-equiv'] == "refresh" })
-			def urlMatch = refreshMeta.@content =~ /.*URL=\'([^\?]+)\?([^\']+)\'/
+			def divTrips = html.BODY.DIV[1].DIV[0]."**".findAll( { it.name() == "DIV" && (it.@class == "lmb02bl" || it.@class == "lmb12bl") } )
 			
-			def redirectUrl = urlMatch[0][1]
-			def redirectQueryString = urlMatch[0][2]
-			
-			println "Redirecting to ${redirectUrl}?${redirectQueryString}"
-			
-			// Faz o segundo request...
-			html = http.get([path: redirectUrl, queryString: redirectQueryString])
-			
-//			println "Partidas..."
-			def tableValues = html."**".find( { it.name() == "TABLE" && it.@id == "js-matrix-departure-lowest" } )
-			
-			SimpleDateFormat hourFormat = new SimpleDateFormat("KK:mm a")
+			SimpleDateFormat dateFormat = new SimpleDateFormat("MMM dd, yyyy KK:mm a", new Locale('pt', 'BR'))
 			
 			def roundTrips = []
-			if ( tableValues ) {
-//				println "Option trip:"
+			divTrips.each { tripDiv -> 
 				def currTrip = new RoundTrip([airline: airline])
-				tableValues.TBODY.TR.each { trValue ->
-					def matchValue = trValue.@id =~ /flight-lowest-departure-(\d+)-(\d+)/
-					if ( matchValue ) {
-						def currFlight = new Flight()
-						if ( matchValue[0][2] == "0") {
-							// Value
-							def tdEconomy = trValue.TD.find({ it.@id =~ /.*Economy.*/ })
-							def departingInput = tdEconomy.LABEL.INPUT.find({ it.@name == "departing" })
-							currTrip.value = departingInput.@value
-						}
+				def infosDiv = tripDiv.DIV[0].DIV[1]
+				def priceMatch = infosDiv.DIV[0].text() =~ /[^\d]+([\d\,]+).*/ 
+				currTrip.value = priceMatch[0][1]
+				
+				def flightDivs = infosDiv.DIV[1]
+				flightDivs.DIV.each { NodeChild flightDiv ->
+					def matchFlight = flightDiv.text() =~ /(\w{3} \d+, \d+).*Partindo : (\w{3}) .* (\d\d:\d\d).?(\w\w) Chegando : (\w{3}) .* (\d\d:\d\d).?(\w\w)Hor.?rio.*/
+					if ( matchFlight ) {
+						Flight flight = new Flight()
+						flight.from = Airport.getByCode(matchFlight[0][2])
 						
-						// Flight details
-						def tdsTime = trValue.TD.findAll({ it.@class == "aa-flight-time" })
+						flight.departTime = new GregorianCalendar()
+						dateFormat.setTimeZone(flight.from.timeZone)
+						flight.departTime.setTime(dateFormat.parse( "${matchFlight[0][1]} ${matchFlight[0][3]} ${matchFlight[0][4]}" ) )
+						flight.departTime.setTimeZone(flight.from.timeZone)
 						
-						// Reference date: the last arrival date OR the start date
-						def startDate = currTrip.departingFlights.size() ? currTrip.departingFlights.last().arrivalTime.time : start 
-						
-						// -> From
-						currFlight.from = Airport.getByCode(tdsTime[0].SPAN.text().trim())
-						def departTime = hourFormat.parse(tdsTime[0].STRONG.text())
-						currFlight.departTime = new GregorianCalendar(startDate[Calendar.YEAR], startDate[Calendar.MONTH], startDate[Calendar.DAY_OF_MONTH], departTime[Calendar.HOUR_OF_DAY], departTime[Calendar.MINUTE])
-						currFlight.departTime.setTimeZone(currFlight.from.timeZone)
-						
-						// -> To
-						currFlight.to = Airport.getByCode(tdsTime[1].SPAN.text().trim())
-						def arrivalTime = hourFormat.parse(tdsTime[1].STRONG.text())
-						currFlight.arrivalTime = new GregorianCalendar(startDate[Calendar.YEAR], startDate[Calendar.MONTH], startDate[Calendar.DAY_OF_MONTH], arrivalTime[Calendar.HOUR_OF_DAY], arrivalTime[Calendar.MINUTE])
-						currFlight.arrivalTime.setTimeZone(currFlight.to.timeZone)
+						flight.to = Airport.getByCode(matchFlight[0][5])
+						flight.arrivalTime = new GregorianCalendar()
+						dateFormat.setTimeZone(flight.to.timeZone)
+						flight.arrivalTime.setTime(dateFormat.parse( "${matchFlight[0][1]} ${matchFlight[0][6]} ${matchFlight[0][7]}" ) )
+						flight.arrivalTime.setTimeZone(flight.to.timeZone)
 						
 						// Fix next-day arrival
-						if ( currFlight.arrivalTime.before(currFlight.departTime) ) {
-							currFlight.arrivalTime.add(Calendar.DAY_OF_MONTH, 1)
+						if ( flight.arrivalTime.before(flight.departTime) ) {
+							flight.arrivalTime.add(Calendar.DAY_OF_MONTH, 1)
 						}
 						
-//						println "${currFlight.from.code}->${currFlight.to.code} ${formatCalendar(currFlight.departTime)} ${formatCalendar(currFlight.arrivalTime)}"
-						
-						// Add current flight to trip
-						currTrip.departingFlights.add( currFlight )
-					} else if ( trValue.@id =~ /flight-notes-*/  ) {
-						currTrip.extra['notes'] = trValue.text()
-						roundTrips.add(currTrip)
-//						println "Option trip:"
-						currTrip = new RoundTrip([airline: airline])
+						// Check if it is after the departing time... so it is an returning flight
+						if ( flight.departTime.time.after(end) ) {
+							currTrip.arrivingFlights.add( flight )
+						} else {
+							currTrip.departingFlights.add( flight )
+						}
 					}
 				}
+				roundTrips.add(currTrip)
 			}
 			
 			println "Found ${roundTrips.size()} trips"
@@ -131,12 +116,5 @@ class AmericanAirlinesTask extends AirlineTask {
 		} catch(Exception e) {
 			this.onDoneDelegate.airlineTaskFinished(this, null, e);
 		}
-	}
-
-	def formatCalendar(Calendar date) {
-		date.format("dd/MM/yyyy HH:mm Z")
-//		SimpleDateFormat format = new SimpleDateFormat()
-//		format.setCalendar(date)
-//		return format.format(date.time)
 	}
 }

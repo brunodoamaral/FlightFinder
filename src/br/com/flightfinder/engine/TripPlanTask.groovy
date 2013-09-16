@@ -66,7 +66,11 @@ class TripPlanTask implements Runnable, AirlineTaskFinished {
 					def duration = TimeCategory.minus(flight.arrivalTime.time, flight.departTime.time)
 					println "    ${flight.from.code}->${flight.to.code} ${flight.departTime.format('dd/MM/yyyy HH:mm Z')} ${flight.arrivalTime.format('dd/MM/yyyy HH:mm Z')} = ${duration}"
 				}
-//				println "Flight from ${trip.from.code} at ${trip.departingFlights.first().departTime} to ${trip.to.code} at ${trip.departingFlights.last().arrivalTime} for ${trip.value}"
+				println "  Arrival (duration ${totalDuration})"
+				trip.arrivingFlights.each{ flight ->
+					def duration = TimeCategory.minus(flight.arrivalTime.time, flight.departTime.time)
+					println "    ${flight.from.code}->${flight.to.code} ${flight.departTime.format('dd/MM/yyyy HH:mm Z')} ${flight.arrivalTime.format('dd/MM/yyyy HH:mm Z')} = ${duration}"
+				}
 			}
 			
 			pool.shutdown()
